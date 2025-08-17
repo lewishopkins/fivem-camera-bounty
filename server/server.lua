@@ -1,25 +1,25 @@
-require 'config'
+local ZONE_DURATION_MINUTES = 1
+local COMPANY_NAME = "Los Santos Stockshots"
+local BANK_DEPOSIT_MESSAGE = "Photo Bounty Reward"
+local BANK_DEPOSIT_COMPANY = "Business Account / " .. COMPANY_NAME
+local MIN_PAYOUT = 50
+local MAX_PAYOUT = 300
+local DIMINISHING_RETURNS = 0.1
+local PHOTOGRAPHY_ZONES = {
+    { x = 1172.4, y = 2696.8, z = 37.1, radius = 250.0 },
+}
 
 local currentZone = nil
 local zoneCount = 0
 
-local ZONE_DURATION_MINUTES = Config.ZONE_DURATION_MINUTES
-
--- The company which appears in the player's transactions
-local COMPANY_NAME = Config.COMPANY_NAME
-local BANK_DEPOSIT_MESSAGE = Config.BANK_DEPOSIT_MESSAGE
-local BANK_DEPOSIT_COMPANY = Config.BANK_DEPOSIT_COMPANY
-
--- Payout configuration per photo
-local MIN_PAYOUT = Config.MIN_PAYOUT
-local MAX_PAYOUT = Config.MAX_PAYOUT
+local ZONE_DURATION_MINUTES = ZONE_DURATION_MINUTES
 
 -- diminishing returns (grind prevention): the percentage drop off per photo (10%)
 -- resets when the server restarts
-local DIMINISHING_RETURNS = Config.DIMINISHING_RETURNS
+local DIMINISHING_RETURNS = DIMINISHING_RETURNS
 
 -- RNG photography zones
-local photographyZones = Config.PHOTOGRAPHY_ZONES
+local photographyZones = PHOTOGRAPHY_ZONES
 
 local pickRandomZone = function()
     print('[CameraBounty][SERVER] pickRandomZone called')
@@ -105,7 +105,7 @@ RegisterNetEvent('npwd:UploadPhoto', function(reqObj, x, y)
         -- Get citizenid from Qbox/QBcore
         local Player = exports['qbx_core']:GetPlayer(src)
         local citizenid = Player and Player.PlayerData and Player.PlayerData.citizenid or tostring(src)
-        local playerName = GetPlayerName(src)
+        local characterName = Player and Player.PlayerData and Player.PlayerData.charinfo and Player.PlayerData.charinfo.firstname and Player.PlayerData.charinfo.firstname .. ' ' .. (Player.PlayerData.charinfo.lastname or '') or GetPlayerName(src)
 
         -- Pay the player to their bank account
         exports['Renewed-Banking']:handleTransaction(
@@ -114,7 +114,7 @@ RegisterNetEvent('npwd:UploadPhoto', function(reqObj, x, y)
             payout,
             BANK_DEPOSIT_MESSAGE,
             COMPANY_NAME,
-            playerName,
+            characterName,
             'deposit'
         )
 
