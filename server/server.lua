@@ -1,4 +1,4 @@
-local ZONE_DURATION_MINUTES = 1
+local ZONE_DURATION_MINUTES = 3
 local COMPANY_NAME = "Los Santos Stockshots"
 local BANK_DEPOSIT_MESSAGE = "Photo Bounty Reward"
 local BANK_DEPOSIT_COMPANY = "Business Account / " .. COMPANY_NAME
@@ -10,7 +10,17 @@ local PHOTOGRAPHY_ZONES = {
 }
 
 local currentZone = nil
+local playersCompletedZone = {}
 local zoneCount = 0
+
+local function tableContains(tbl, value)
+    for _, v in pairs(tbl) do
+        if v == value then
+            return true
+        end
+    end
+    return false
+end
 
 local pickRandomZone = function()
     print('[CameraBounty][SERVER] pickRandomZone called')
@@ -21,6 +31,7 @@ Citizen.CreateThread(function()
     print('[CameraBounty][SERVER] Citizen.CreateThread started')
     while true do
         zoneCount = zoneCount + 1
+        playersCompletedZone = {}
         currentZone = pickRandomZone()
         currentZone.id = zoneCount
         print(('[CameraBounty][SERVER] New active zone: x=%.2f, y=%.2f, z=%.2f, radius=%.2f, id=%d'):format(currentZone.x, currentZone.y, currentZone.z, currentZone.radius, currentZone.id))
@@ -87,6 +98,14 @@ RegisterNetEvent('npwd:UploadPhoto', function(reqObj, x, y)
     local ped = GetPlayerPed(src)
     local coords = GetEntityCoords(ped)
 
+    -- if player has already claimed this bounty, exit out of this method
+    print('[CameraBounty][SERVER] checking if player has completed bounty...')
+    if playersCompletedZone[src] and tableContains(playersCompletedZone[src], currentZone.id) then
+        print('[CameraBounty][SERVER] Player has already claimed this bounty')
+        return
+    end
+    print('[CameraBounty][SERVER] Player has not completed bounty.')
+
     if isPlayerInPhotographyZone(coords) then
         print('[CameraBounty][SERVER] Player is in the photography zone')
 
@@ -97,6 +116,14 @@ RegisterNetEvent('npwd:UploadPhoto', function(reqObj, x, y)
         local Player = exports['qbx_core']:GetPlayer(src)
         local citizenid = Player and Player.PlayerData and Player.PlayerData.citizenid or tostring(src)
         local characterName = Player and Player.PlayerData and Player.PlayerData.charinfo and Player.PlayerData.charinfo.firstname and Player.PlayerData.charinfo.firstname .. ' ' .. (Player.PlayerData.charinfo.lastname or '') or GetPlayerName(src)
+
+
+        -- add them to the claimed
+        playersCompletedZone[src] = playersCompletedZone[src] or {}
+        table.insert(playersCompletedZone[src], currentZone.id)
+
+        -- remove bounty zone from map on client
+        TriggerClientEvent('camera-bounty:removeZone', src, currentZone.id)
 
         -- Pay the player to their bank account
         exports['Renewed-Banking']:handleTransaction(
@@ -123,14 +150,11 @@ RegisterNetEvent('camera-bounty:requestActiveZone', function()
     print('[CameraBounty][SERVER] Player requested active zone')
     local src = source
     if currentZone then
-        TriggerClientEvent('camera-bounty:setActiveZone', src, currentZone.x, currentZone.y, currentZone.z, currentZone.radius, currentZone.id)
-    end
-end)
-
--- testing
-AddEventHandler('onResourceStart', function(resourceName)
-    if resourceName == GetCurrentResourceName() then
-        print('[CameraBounty][SERVER] Resource fully loaded, notifying clients')
-        TriggerClientEvent('camera-bounty:resourceStarted', -1)
+        -- Only send zone if player hasn't completed it
+        if not (playersCompletedZone[src] and tableContains(playersCompletedZone[src], currentZone.id)) then
+            TriggerClientEvent('camera-bounty:setActiveZone', src, currentZone.x, currentZone.y, currentZone.z, currentZone.radius, currentZone.id)
+        else
+            print(('[CameraBounty][SERVER] Player %d has already completed zone %d, not sending zone'):format(src, currentZone.id))
+        end
     end
 end)
