@@ -7,7 +7,6 @@ author 'Lewis Hopkins'
 version '0.0.1'
 
 shared_scripts {
-    '@qbx_core/import.lua'
 }
 
 client_scripts {

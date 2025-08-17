@@ -12,18 +12,9 @@ local PHOTOGRAPHY_ZONES = {
 local currentZone = nil
 local zoneCount = 0
 
-local ZONE_DURATION_MINUTES = ZONE_DURATION_MINUTES
-
--- diminishing returns (grind prevention): the percentage drop off per photo (10%)
--- resets when the server restarts
-local DIMINISHING_RETURNS = DIMINISHING_RETURNS
-
--- RNG photography zones
-local photographyZones = PHOTOGRAPHY_ZONES
-
 local pickRandomZone = function()
     print('[CameraBounty][SERVER] pickRandomZone called')
-    return photographyZones[math.random(#photographyZones)] -- TODO prevent last active zone from being used
+    return PHOTOGRAPHY_ZONES[math.random(#PHOTOGRAPHY_ZONES)] -- TODO prevent last active zone from being used
 end
 
 Citizen.CreateThread(function()
@@ -129,8 +120,17 @@ end)
 
 -- Allow client to request latest bounty area upon joining server
 RegisterNetEvent('camera-bounty:requestActiveZone', function()
+    print('[CameraBounty][SERVER] Player requested active zone')
     local src = source
     if currentZone then
         TriggerClientEvent('camera-bounty:setActiveZone', src, currentZone.x, currentZone.y, currentZone.z, currentZone.radius, currentZone.id)
+    end
+end)
+
+-- testing
+AddEventHandler('onResourceStart', function(resourceName)
+    if resourceName == GetCurrentResourceName() then
+        print('[CameraBounty][SERVER] Resource fully loaded, notifying clients')
+        TriggerClientEvent('camera-bounty:resourceStarted', -1)
     end
 end)
