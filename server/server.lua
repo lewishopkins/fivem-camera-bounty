@@ -126,6 +126,9 @@ RegisterNetEvent('npwd:UploadPhoto', function(reqObj, x, y)
             color = { 0, 255, 0 },
             args = { "[Photo Bounty]", "You earned $" .. payout .. " for your photo!" }
         })
+
+        -- TEST: Send client event to print out nearby animals
+        TriggerClientEvent('camera-bounty:printNearbyAnimals', src)
     end
 end)
 
