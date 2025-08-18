@@ -79,29 +79,27 @@ RegisterNetEvent('camera-bounty:printNearbyAnimals', function()
     print("[DEBUG] Searching for nearby animals within cone angle: " .. coneAngle .. " and max distance: " .. distance)
     print("[DEBUG] Player coords: " .. playerCoords.x .. ", " .. playerCoords.y .. ", " .. playerCoords.z)
 
-    -- Get camera direction
     local camForward = getCamForwardVector()
-
     local nearbyAnimals = {}
     local totalAnimalPeds = 0
+
     local handle, foundPed = FindFirstPed()
     local success = true
     while success do
         if foundPed ~= ped then
             local model = GetEntityModel(foundPed)
-            local animalCoords = GetEntityCoords(foundPed)
             local animalName = PedModels.Animals[model]
             if animalName then
-                totalAnimalPeds = totalAnimalPeds + 1
+                local animalCoords = GetEntityCoords(foundPed)
                 local toAnimal = vector3(animalCoords.x - playerCoords.x, animalCoords.y - playerCoords.y, animalCoords.z - playerCoords.z)
                 local dist = #(toAnimal)
-                -- Normalize toAnimal
                 local toAnimalNorm = dist > 0 and vector3(toAnimal.x / dist, toAnimal.y / dist, toAnimal.z / dist) or vector3(0,0,0)
-                -- Dot product for angle
                 local dot = toAnimalNorm.x * camForward.x + toAnimalNorm.y * camForward.y + toAnimalNorm.z * camForward.z
                 local angle = math.deg(math.acos(dot))
-                print(string.format("[DEBUG] Found animal ped: model=%s (%s), coords=(%.2f, %.2f, %.2f), dist=%.2f, angle=%.2f", model, animalName, animalCoords.x, animalCoords.y, animalCoords.z, dist, angle))
                 if dist <= distance and angle <= coneAngle then
+                    totalAnimalPeds = totalAnimalPeds + 1
+                    print(string.format("[DEBUG] Animal in cone: %s (model=%s), coords=(%.2f, %.2f, %.2f), dist=%.2f, angle=%.2f",
+                        animalName, model, animalCoords.x, animalCoords.y, animalCoords.z, dist, angle))
                     table.insert(nearbyAnimals, {
                         model = model,
                         name = animalName,
@@ -110,15 +108,13 @@ RegisterNetEvent('camera-bounty:printNearbyAnimals', function()
                         angle = angle
                     })
                 end
-            else
-                print(string.format("[DEBUG] Found non-animal ped: model=%s, coords=(%.2f, %.2f, %.2f)", model, animalCoords.x, animalCoords.y, animalCoords.z))
             end
         end
         success, foundPed = FindNextPed(handle)
     end
     EndFindPed(handle)
 
-    print("[DEBUG] Total animal peds found: " .. totalAnimalPeds)
+    print("[DEBUG] Total animals in cone: " .. totalAnimalPeds)
     print("Nearby animals in cone: " .. json.encode(nearbyAnimals))
 
     -- Visualize cone for development (draw for 60 seconds)
