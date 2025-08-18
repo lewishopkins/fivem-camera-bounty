@@ -58,42 +58,6 @@ Citizen.CreateThread(function()
 end)
 
 
--- test: animals
--- List of all common GTA V animal models
-local animalModels = {
-    [GetHashKey("a_c_boar")] = true,
-    [GetHashKey("a_c_cat_01")] = true,
-    [GetHashKey("a_c_chickenhawk")] = true,
-    [GetHashKey("a_c_chimp")] = true,
-    [GetHashKey("a_c_chop")] = true,
-    [GetHashKey("a_c_cormorant")] = true,
-    [GetHashKey("a_c_cow")] = true,
-    [GetHashKey("a_c_coyote")] = true,
-    [GetHashKey("a_c_crow")] = true,
-    [GetHashKey("a_c_deer")] = true,
-    [GetHashKey("a_c_dolphin")] = true,
-    [GetHashKey("a_c_fish")] = true,
-    [GetHashKey("a_c_hen")] = true,
-    [GetHashKey("a_c_humpback")] = true,
-    [GetHashKey("a_c_husky")] = true,
-    [GetHashKey("a_c_mtlion")] = true,
-    [GetHashKey("a_c_pig")] = true,
-    [GetHashKey("a_c_pigeon")] = true,
-    [GetHashKey("a_c_poodle")] = true,
-    [GetHashKey("a_c_pug")] = true,
-    [GetHashKey("a_c_rabbit_01")] = true,
-    [GetHashKey("a_c_rat")] = true,
-    [GetHashKey("a_c_retriever")] = true,
-    [GetHashKey("a_c_rhesus")] = true,
-    [GetHashKey("a_c_rottweiler")] = true,
-    [GetHashKey("a_c_seagull")] = true,
-    [GetHashKey("a_c_sharkhammer")] = true,
-    [GetHashKey("a_c_sharktiger")] = true,
-    [GetHashKey("a_c_shepherd")] = true,
-    [GetHashKey("a_c_stingray")] = true,
-    [GetHashKey("a_c_westy")] = true,
-}
-
 -- Helper: get camera forward vector from rotation
 local function getCamForwardVector()
     local rot = GetGameplayCamRot(2)
@@ -126,7 +90,8 @@ RegisterNetEvent('camera-bounty:printNearbyAnimals', function()
         if foundPed ~= ped then
             local model = GetEntityModel(foundPed)
             local animalCoords = GetEntityCoords(foundPed)
-            if animalModels[model] then
+            local animalName = PedModels.Animals[model]
+            if animalName then
                 totalAnimalPeds = totalAnimalPeds + 1
                 local toAnimal = vector3(animalCoords.x - playerCoords.x, animalCoords.y - playerCoords.y, animalCoords.z - playerCoords.z)
                 local dist = #(toAnimal)
@@ -135,10 +100,11 @@ RegisterNetEvent('camera-bounty:printNearbyAnimals', function()
                 -- Dot product for angle
                 local dot = toAnimalNorm.x * camForward.x + toAnimalNorm.y * camForward.y + toAnimalNorm.z * camForward.z
                 local angle = math.deg(math.acos(dot))
-                print(string.format("[DEBUG] Found animal ped: model=%s, coords=(%.2f, %.2f, %.2f), dist=%.2f, angle=%.2f", model, animalCoords.x, animalCoords.y, animalCoords.z, dist, angle))
+                print(string.format("[DEBUG] Found animal ped: model=%s (%s), coords=(%.2f, %.2f, %.2f), dist=%.2f, angle=%.2f", model, animalName, animalCoords.x, animalCoords.y, animalCoords.z, dist, angle))
                 if dist <= distance and angle <= coneAngle then
                     table.insert(nearbyAnimals, {
                         model = model,
+                        name = animalName,
                         coords = animalCoords,
                         dist = dist,
                         angle = angle

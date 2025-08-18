@@ -13,6 +13,8 @@ local currentZone = nil
 local playersCompletedZone = {}
 local zoneCount = 0
 
+local animalModels = AnimalModels
+
 local function tableContains(tbl, value)
     for _, v in pairs(tbl) do
         if v == value then
