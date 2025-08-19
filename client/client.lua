@@ -22,11 +22,13 @@ end
 
 RegisterNetEvent('camera-bounty:setActiveZone', function(x, y, z, radius, id)
     createBlipWithRadius(x, y, z, radius, id)
-    TriggerEvent('chat:addMessage', {
-        color = { 34, 139, 34 },
-        multiline = true,
-        args = { "[Photo Bounty]", "New photo bounty available!" }
-    })
+    if Config.ANNOUNCE_ZONE_CHANGES then
+        TriggerEvent('chat:addMessage', {
+            color = { 34, 139, 34 },
+            multiline = true,
+            args = { "[Photo Bounty]", "New photo bounty available!" }
+        })
+    end
 end)
 
 RegisterNetEvent('camera-bounty:removeZone', function(id)

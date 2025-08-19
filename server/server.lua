@@ -1,14 +1,3 @@
-local ZONE_DURATION_MINUTES = 3
-local COMPANY_NAME = "Los Santos Stockshots"
-local BANK_DEPOSIT_MESSAGE = "Photo Bounty Reward"
-local BANK_DEPOSIT_COMPANY = "Business Account / " .. COMPANY_NAME
-local MIN_PAYOUT = 50
-local MAX_PAYOUT = 300
-local DIMINISHING_RETURNS = 0.1
-local PHOTOGRAPHY_ZONES = {
-    { x = 1172.4, y = 2696.8, z = 37.1, radius = 250.0 },
-}
-
 -- state
 local currentZone = nil
 local eligiblePlayers = {} -- Players who have captured a photo in the current zone and are eligible for a reward
@@ -27,7 +16,7 @@ local function tableContains(tbl, value)
 end
 
 local pickRandomZone = function()
-    return PHOTOGRAPHY_ZONES[math.random(#PHOTOGRAPHY_ZONES)] -- TODO prevent last active zone from being used
+    return Config.PHOTOGRAPHY_ZONES[math.random(#Config.PHOTOGRAPHY_ZONES)] -- TODO prevent last active zone from being used
 end
 
 Citizen.CreateThread(function()
@@ -39,7 +28,7 @@ Citizen.CreateThread(function()
         currentZone.id = zoneCount
         TriggerClientEvent('camera-bounty:setActiveZone', -1, currentZone.x, currentZone.y, currentZone.z, currentZone.radius, currentZone.id)
 
-        Citizen.Wait(ZONE_DURATION_MINUTES * 60 * 1000)
+        Citizen.Wait(Config.ZONE_DURATION_MINUTES * 60 * 1000)
 
         -- Zone expired
         TriggerClientEvent('camera-bounty:removeZone', -1, currentZone.id)
@@ -59,14 +48,11 @@ local calculatePayout = function(photographedAnimalsCount)
     if not currentZone then return 0 end
 
     -- player starts with a flat 10% of the max payout
-    local payout = 0.1 * MAX_PAYOUT
-
-    print(("[Camera Bounty] Player %d initial payout: %.2f"):format(source, payout))
+    local payout = 0.1 * Config.MAX_PAYOUT
 
     -- player gets 50% if they photographed an animal
     if photographedAnimalsCount > 0 then
-        payout = payout + (0.5 * MAX_PAYOUT)
-        print(("[Camera Bounty] Player %d additional payout for photographing animals: %.2f"):format(source, 0.5 * MAX_PAYOUT))
+        payout = payout + (0.5 * Config.MAX_PAYOUT)
     end
 
     -- what percent is the player close to the center of the zone?
@@ -80,18 +66,14 @@ local calculatePayout = function(photographedAnimalsCount)
     percent = math.max(0, math.min(percent, 1))
 
     -- player gets up to 40% additional payout based on proximity
-    local proximityBonus = percent * 0.4 * (MAX_PAYOUT - MIN_PAYOUT)
+    local proximityBonus = percent * 0.4 * (Config.MAX_PAYOUT - Config.MIN_PAYOUT)
     payout = payout + proximityBonus
-
-    print(("[Camera Bounty] Player %d proximity bonus: %.2f"):format(source, proximityBonus))
 
     -- Make sure value hasn't breached the maximum
     -- and is a round number
-    payout = math.floor(math.min(payout, MAX_PAYOUT))
-    print(("[Camera Bounty] Player %d final payout: %d"):format(source, payout))
+    payout = math.floor(math.min(payout, Config.MAX_PAYOUT))
     -- and is not less than the minimum
-    payout = math.max(payout, MIN_PAYOUT)
-    print(("[Camera Bounty] Player %d final payout (after min check): %d"):format(source, payout))
+    payout = math.max(payout, Config.MIN_PAYOUT)
 
     return payout
 end
@@ -114,7 +96,7 @@ RegisterNetEvent('npwd:UploadPhoto', function(reqObj, x, y)
         eligiblePlayers[zoneCount] = eligiblePlayers[zoneCount] or {}
         table.insert(eligiblePlayers[zoneCount], src)
 
-        -- Give client go-ahead to request payment by sending us list of photographed animals
+        -- Give client go-ahead to request payment by sending server a list of photographed animals
         TriggerClientEvent('camera-bounty:requestCapturedAnimals', src)
     end
 end)
@@ -137,9 +119,7 @@ RegisterNetEvent('camera-bounty:requestPayment', function(capturedAnimals)
         return
     end
 
-    print(("[Camera Bounty] Player %d is eligible for payout"):format(src))
     local payout = calculatePayout(#capturedAnimals)
-    print(("[Camera Bounty] Player %d payout: %d"):format(src, payout))
 
     -- Get citizenid from Qbox/QBcore
     local Player = exports['qbx_core']:GetPlayer(src)
@@ -156,17 +136,20 @@ RegisterNetEvent('camera-bounty:requestPayment', function(capturedAnimals)
     -- Pay the player to their bank account
     exports['Renewed-Banking']:handleTransaction(
         citizenid,
-        BANK_DEPOSIT_COMPANY,
+        Config.BANK_DEPOSIT_COMPANY,
         payout,
-        BANK_DEPOSIT_MESSAGE,
-        COMPANY_NAME,
+        Config.BANK_DEPOSIT_MESSAGE,
+        Config.COMPANY_NAME,
         characterName,
         'deposit'
     )
 
+    -- wait a few seconds
+    Citizen.Wait(5000)
+
     -- send player a payout notification
     TriggerClientEvent('chat:addMessage', src, {
-        color = { 0, 255, 0 },
+        color = { 34, 139, 34 },
         args = { "[Photo Bounty]", "You earned $" .. payout .. " for your photo!" }
     })
 end)
