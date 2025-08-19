@@ -7,6 +7,8 @@ author 'Lewis Hopkins'
 version '0.0.1'
 
 shared_scripts {
+    'config/pedModels.lua',
+    'config/config.lua'
 }
 
 client_scripts {
