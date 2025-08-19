@@ -69,15 +69,46 @@ local function getCamForwardVector()
     return vector3(x, y, z)
 end
 
--- implement event handler camera-bounty:printNearbyAnimals
-RegisterNetEvent('camera-bounty:printNearbyAnimals', function()
+local function debugConstructVisualCone(seconds, playerCoords, camForward, distance, coneAngle)
+    CreateThread(function()
+        local function rotateVec(vec, angleDeg)
+            local angleRad = math.rad(angleDeg)
+            local cosA = math.cos(angleRad)
+            local sinA = math.sin(angleRad)
+            -- Only rotate in XY plane
+            return vector3(
+                vec.x * cosA - vec.y * sinA,
+                vec.x * sinA + vec.y * cosA,
+                vec.z
+            )
+        end
+
+        local function scaleVec(vec, scalar)
+            return vector3(vec.x * scalar, vec.y * scalar, vec.z * scalar)
+        end
+
+        local centerEnd = playerCoords + scaleVec(camForward, distance)
+        local leftEnd = playerCoords + scaleVec(rotateVec(camForward, -coneAngle), distance)
+        local rightEnd = playerCoords + scaleVec(rotateVec(camForward, coneAngle), distance)
+
+        local r, g, b = 0, 255, 0 -- green
+        local duration = GetGameTimer() + (seconds * 1000) -- keep debug lines visible for specified seconds
+        while GetGameTimer() < duration do
+            DrawLine(playerCoords.x, playerCoords.y, playerCoords.z, centerEnd.x, centerEnd.y, centerEnd.z, r, g, b, 255)
+            DrawLine(playerCoords.x, playerCoords.y, playerCoords.z, leftEnd.x, leftEnd.y, leftEnd.z, r, g, b, 255)
+            DrawLine(playerCoords.x, playerCoords.y, playerCoords.z, rightEnd.x, rightEnd.y, rightEnd.z, r, g, b, 255)
+            Citizen.Wait(0)
+        end
+    end)
+end
+
+
+-- implement event handler camera-bounty:requestCapturedAnimals
+RegisterNetEvent('camera-bounty:requestCapturedAnimals', function()
     local ped = PlayerPedId()
     local playerCoords = GetEntityCoords(ped)
     local distance = 100.0 -- max distance
     local coneAngle = 15.0 -- fixed cone angle
-
-    print("[DEBUG] Searching for nearby animals within cone angle: " .. coneAngle .. " and max distance: " .. distance)
-    print("[DEBUG] Player coords: " .. playerCoords.x .. ", " .. playerCoords.y .. ", " .. playerCoords.z)
 
     local camForward = getCamForwardVector()
     local nearbyAnimals = {}
@@ -96,10 +127,15 @@ RegisterNetEvent('camera-bounty:printNearbyAnimals', function()
                 local toAnimalNorm = dist > 0 and vector3(toAnimal.x / dist, toAnimal.y / dist, toAnimal.z / dist) or vector3(0,0,0)
                 local dot = toAnimalNorm.x * camForward.x + toAnimalNorm.y * camForward.y + toAnimalNorm.z * camForward.z
                 local angle = math.deg(math.acos(dot))
+
                 if dist <= distance and angle <= coneAngle then
                     totalAnimalPeds = totalAnimalPeds + 1
-                    print(string.format("[DEBUG] Animal in cone: %s (model=%s), coords=(%.2f, %.2f, %.2f), dist=%.2f, angle=%.2f",
-                        animalName, model, animalCoords.x, animalCoords.y, animalCoords.z, dist, angle))
+
+                    if Config.debug then
+                        print(string.format("[DEBUG] Animal in cone: %s (model=%s), coords=(%.2f, %.2f, %.2f), dist=%.2f, angle=%.2f",
+                            animalName, model, animalCoords.x, animalCoords.y, animalCoords.z, dist, angle))
+                    end
+
                     table.insert(nearbyAnimals, {
                         model = model,
                         name = animalName,
@@ -108,41 +144,20 @@ RegisterNetEvent('camera-bounty:printNearbyAnimals', function()
                         angle = angle
                     })
                 end
+
             end
+
         end
         success, foundPed = FindNextPed(handle)
     end
     EndFindPed(handle)
 
-    print("[DEBUG] Total animals in cone: " .. totalAnimalPeds)
-    print("Nearby animals in cone: " .. json.encode(nearbyAnimals))
+    if Config.debug then
+        print("[DEBUG] Total animals in cone: " .. totalAnimalPeds)
+        print("Nearby animals in cone: " .. json.encode(nearbyAnimals))
+        debugConstructVisualCone(60, playerCoords, camForward, distance, coneAngle)
+    end
 
-    -- Visualize cone for development (draw for 60 seconds)
-    Citizen.CreateThread(function()
-        local camForward = getCamForwardVector()
-        local function rotateVec(vec, angleDeg)
-            local angleRad = math.rad(angleDeg)
-            local cosA = math.cos(angleRad)
-            local sinA = math.sin(angleRad)
-            -- Only rotate in XY plane
-            return vector3(
-                vec.x * cosA - vec.y * sinA,
-                vec.x * sinA + vec.y * cosA,
-                vec.z
-            )
-        end
-
-        local centerEnd = playerCoords + camForward * distance
-        local leftEnd = playerCoords + rotateVec(camForward, -coneAngle) * distance
-        local rightEnd = playerCoords + rotateVec(camForward, coneAngle) * distance
-
-        local r, g, b = 0, 255, 0 -- green
-        local duration = GetGameTimer() + 60000 -- keep debug lines visible for 60 seconds
-        while GetGameTimer() < duration do
-            DrawLine(playerCoords.x, playerCoords.y, playerCoords.z, centerEnd.x, centerEnd.y, centerEnd.z, r, g, b, 255)
-            DrawLine(playerCoords.x, playerCoords.y, playerCoords.z, leftEnd.x, leftEnd.y, leftEnd.z, r, g, b, 255)
-            DrawLine(playerCoords.x, playerCoords.y, playerCoords.z, rightEnd.x, rightEnd.y, rightEnd.z, r, g, b, 255)
-            Citizen.Wait(0)
-        end
-    end)
+    -- Send request to server
+    TriggerServerEvent('camera-bounty:requestPayment', nearbyAnimals)
 end)
